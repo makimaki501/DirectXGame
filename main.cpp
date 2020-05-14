@@ -37,6 +37,13 @@ LRESULT WindowsProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	return DefWindowProc(hwnd, msg, wparam, lparam);//標準の処理を行う
 }
 
+void DrawInstanced(
+	UINT VertexCountPerInstance,  //頂点数
+	UINT InstanceCount,           //インスタンス数(1でよい)
+	UINT StartVertexLocation,     //開始頂点番号(0でよい)
+	UINT StartInstanceLocation    //インスタンスごとの加算番号(0でよい)
+);
+
 //Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	const int window_width = 1280;//横幅
@@ -187,7 +194,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	IDirectInput8*dinput = nullptr;
 	result = DirectInput8Create(
 		w.hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&dinput, nullptr);
-	
+
 	//キーボードデバイスの生成
 	IDirectInputDevice8*devkeyboard = nullptr;
 	result = dinput->CreateDevice(GUID_SysKeyboard, &devkeyboard, NULL);
@@ -309,7 +316,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//サンプルマスクとラスタライザステートの設定
 	gpipeline.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;//標準設定
 	gpipeline.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;  //カリングしない
-	gpipeline.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;//ポリゴン内塗りつぶし
+	gpipeline.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;//ワイヤーフレーム表示設定
 	gpipeline.RasterizerState.DepthClipEnable = true;  //深度クリッピングを有効に
 	//ブレンドステートの設定
 	gpipeline.BlendState.RenderTarget[0].RenderTargetWriteMask =
@@ -385,7 +392,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		//画面クリアカラーを変更してみる例
 		if (key[DIK_SPACE]) {
-			clearColor[0] = {1.0f};
+			clearColor[0] = { 1.0f };
 		}
 
 		cmdList->ClearRenderTargetView(rtvH, clearColor, 0, nullptr);

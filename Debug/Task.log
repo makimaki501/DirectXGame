@@ -1,10 +1,4 @@
-﻿FXC : warning X4717: Effects deprecated for D3DCompiler_47
-  
-  compilation object save succeeded; see D:\3年次\DirectX12Game\Debug\BasicPixelShader.cso
-FXC : warning X4717: Effects deprecated for D3DCompiler_47
-  
-  compilation object save succeeded; see D:\3年次\DirectX12Game\Debug\BasicVertexShader.cso
-  main.cpp
+﻿  main.cpp
   c:\program files (x86)\windows kits\10\include\10.0.17763.0\um\dinput.h: DIRECTINPUT_VERSION undefined. Defaulting to version 0x0800
 d:\3年次\directx12game\main.cpp(11): warning C4005: 'DIRECTINPUT_VERSION': マクロが再定義されました。
   c:\program files (x86)\windows kits\10\include\10.0.17763.0\um\dinput.h(48): note: 'DIRECTINPUT_VERSION' の以前の定義を確認してください
