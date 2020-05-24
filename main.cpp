@@ -4,7 +4,7 @@
 #include<vector>
 #include<DirectXMath.h>
 #include<d3dcompiler.h>
-#include<dinput.h>
+#include"Input.h"
 
 using namespace DirectX;
 
@@ -24,8 +24,15 @@ ID3D12CommandAllocator*cmdAllocator = nullptr;
 ID3D12GraphicsCommandList*cmdList = nullptr;
 ID3D12CommandQueue*cmdQueue = nullptr;
 ID3D12DescriptorHeap*rtvHeaps = nullptr;
+D3D12_VIEWPORT viewports[4];
 
+bool triangle = true;
+int vertexNum = 3;
 
+int keyCnt, keyCnt2;
+bool wireframe;
+
+float moveX = 0.0f, moveY = 0.0f;
 
 LRESULT WindowsProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	//メッセージで分岐
@@ -36,13 +43,6 @@ LRESULT WindowsProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	}
 	return DefWindowProc(hwnd, msg, wparam, lparam);//標準の処理を行う
 }
-
-void DrawInstanced(
-	UINT VertexCountPerInstance,  //頂点数
-	UINT InstanceCount,           //インスタンス数(1でよい)
-	UINT StartVertexLocation,     //開始頂点番号(0でよい)
-	UINT StartInstanceLocation    //インスタンスごとの加算番号(0でよい)
-);
 
 //Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -83,8 +83,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	MSG msg{};
 
-	//DirectX初期化処理
-
+#pragma region DirectX初期化処理
 	//DXGIファクトリーの生成
 	result = CreateDXGIFactory1(IID_PPV_ARGS(&dxgiFactory));
 	//アダプターの列挙用
@@ -188,8 +187,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	ID3D12Fence*fence = nullptr;
 	UINT64 fenceVal = 0;
 	result = dev->CreateFence(fenceVal, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
+#pragma endregion
 
-	//キーボード入力
+#pragma region キーボード入力
 	//DirectInputオブジェクト生成
 	IDirectInput8*dinput = nullptr;
 	result = DirectInput8Create(
@@ -205,14 +205,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//排他制御レベルのセット
 	result = devkeyboard->SetCooperativeLevel(
 		hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
+#pragma endregion
 
-	//描画初期化処理
-
-	//頂点データ(3頂点分の座標)
+#pragma region 描画初期化処理
+	//頂点データ(4頂点分の座標)
 	XMFLOAT3 vertices[] = {
 		{-0.5f,-0.5f,0.0f},   //左下
 		{-0.5f,+0.5f,0.0f},   //左上
 		{+0.5f,-0.5f,0.0f},   //右下
+		{+0.5f,+0.5f,0.0f},   //右上
 	};
 
 	//頂点バッファの確保
@@ -241,7 +242,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//GPU上のバッファに対応した仮想メモリを取得
 	XMFLOAT3*vertMap = nullptr;
 	result = vertBuff->Map(0, nullptr, (void**)&vertMap);
-
 	//全頂点に対して
 	for (int i = 0; i < _countof(vertices); i++)
 	{
@@ -313,14 +313,27 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	gpipeline.VS.BytecodeLength = vsBlob->GetBufferSize();
 	gpipeline.PS.pShaderBytecode = psBlob->GetBufferPointer();
 	gpipeline.PS.BytecodeLength = psBlob->GetBufferSize();
+
 	//サンプルマスクとラスタライザステートの設定
 	gpipeline.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;//標準設定
 	gpipeline.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;  //カリングしない
-	gpipeline.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;//ワイヤーフレーム表示設定
+	gpipeline.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;//ワイヤーフレーム表示設定
 	gpipeline.RasterizerState.DepthClipEnable = true;  //深度クリッピングを有効に
+
+	//レンダーターゲットのブレンド設定(8個あるが、今は一つしか使わない)
+	D3D12_RENDER_TARGET_BLEND_DESC blenddesc{};
+
 	//ブレンドステートの設定
+	//gpipeline.BlendState.RenderTarget[0] = blenddesc;
 	gpipeline.BlendState.RenderTarget[0].RenderTargetWriteMask =
-		D3D12_COLOR_WRITE_ENABLE_ALL;  //RGBA全てのチャンネルを描画
+		D3D12_COLOR_WRITE_ENABLE_ALL;
+
+
+	blenddesc.BlendEnable = true;                   //ブレンドを有効にする
+	blenddesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;    //加算
+	blenddesc.SrcBlendAlpha = D3D12_BLEND_ONE;      //ソースの値を100％使う
+	blenddesc.DestBlendAlpha = D3D12_BLEND_ZERO;    //デストの値を  0％使う
+
 	//頂点レイアウトの設定
 	gpipeline.InputLayout.pInputElementDescs = inputLayout;
 	gpipeline.InputLayout.NumElements = _countof(inputLayout);
@@ -350,6 +363,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//パイプラインステートの生成
 	ID3D12PipelineState*pipelinestate = nullptr;
 	result = dev->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(&pipelinestate));
+#pragma endregion
+
+
 	while (true)
 	{
 		//キーボード情報の取得開始
@@ -358,18 +374,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		//全キーの入力状態を取得する
 		BYTE key[256] = {};
 		result = devkeyboard->GetDeviceState(sizeof(key), key);
-
-		//キーが押されている時の処理
-		if (key[DIK_0]) {   //数字の0キーが押されていたら
-			OutputDebugStringA("Hit 0\n");  //出力ウィンドウに「Hit 0」と表示
-		}
-
-
 		//メッセージがあるか？
 		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
+
 
 		//バックバッファの番号を取得(2つなので0番か1番)
 		UINT bbIndex = swapchain->GetCurrentBackBufferIndex();
@@ -388,31 +398,120 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		rtvH.ptr += bbIndex * dev->GetDescriptorHandleIncrementSize(heapDesc.Type);
 		cmdList->OMSetRenderTargets(1, &rtvH, false, nullptr);
 		//全画面クリア          R    G     B    A
-		float clearColor[] = { 0.1f,0.25f,0.5f,0.0f };//青っぽい色
-
-		//画面クリアカラーを変更してみる例
-		if (key[DIK_SPACE]) {
-			clearColor[0] = { 1.0f };
-		}
+		float clearColor[] = { 1.0f,0.2f,1.0f,0.0f };//青っぽい色
 
 		cmdList->ClearRenderTargetView(rtvH, clearColor, 0, nullptr);
-
-
 		//２.画面クリアコマンドここまで
+
+
+		//キー入力
+		if (key[DIK_1]) {
+			keyCnt++;
+		}
+		else {
+			keyCnt = 0;
+		}
+		if (keyCnt == 1) {
+			switch (vertexNum)
+			{
+			case 3:
+				vertexNum = 4;
+				break;
+			case 4:
+				vertexNum = 3;
+				break;
+			default:
+				break;
+			}
+		}
+
+		if (key[DIK_2]) {
+			keyCnt2++;
+
+		}
+		else {
+			keyCnt2 = 0;
+		}
+
+		if (keyCnt2 == 1) {
+			wireframe = !wireframe;
+			if (wireframe) {
+				gpipeline.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;//ワイヤーフレーム表示設定
+			}
+			else {
+				gpipeline.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;//ワイヤーフレーム表示設定
+			}
+			result = dev->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(&pipelinestate));
+		}
+
+		if (key[DIK_UP]) {
+			moveY += 0.01f;
+		}
+
+		if (key[DIK_DOWN]) {
+			moveY -= 0.01f;
+		}
+
+		if (key[DIK_RIGHT]) {
+			moveX += 0.01f;
+		}
+
+		if (key[DIK_LEFT]) {
+			moveX -= 0.01f;
+		}
+
+		//頂点
+		XMFLOAT3 vertices[] = {
+		{-0.5f + moveX,-0.5f + moveY,0.0f},   //左下
+		{-0.5f + moveX,+0.5f + moveY,0.0f},   //左上
+		{+0.5f + moveX,-0.5f + moveY,0.0f},   //右下
+		{+0.5f + moveX,+0.5f + moveY,0.0f},   //右上
+		};
+		//全頂点に対して
+		for (int i = 0; i < _countof(vertices); i++)
+		{
+			vertMap[i] = vertices[i];   //座標をコピー
+		}
+		//マップを解除
+		vertBuff->Unmap(0, nullptr);
+
 
 		//３.描画コマンドここから
 
 		//パイプラインステートの設定コマンド
 		cmdList->SetPipelineState(pipelinestate);
-		//ビューポートの設定コマンド
-		D3D12_VIEWPORT viewport{};
-		viewport.Width = window_width;
-		viewport.Height = window_height;
-		viewport.TopLeftX = 0;
-		viewport.TopLeftY = 0;
-		viewport.MinDepth = 0.0f;
-		viewport.MaxDepth = 1.0f;
-		cmdList->RSSetViewports(1, &viewport);
+
+		//ビューポート初期化
+		{
+			viewports[0].Width = window_width / 2 + 200;
+			viewports[0].Height = window_height / 2;
+			viewports[0].TopLeftX = 0;
+			viewports[0].TopLeftY = 0;
+			viewports[0].MinDepth = 0.0f;
+			viewports[0].MaxDepth = 1.0f;
+
+			viewports[1].Width = window_width / 2 - 200;
+			viewports[1].Height = window_height / 2 + 100;
+			viewports[1].TopLeftX = 840;
+			viewports[1].TopLeftY = 0;
+			viewports[1].MinDepth = 0.0f;
+			viewports[1].MaxDepth = 1.0f;
+
+			viewports[2].Width = window_width / 2 + 200;
+			viewports[2].Height = window_height / 2 - 100;
+			viewports[2].TopLeftX = 0;
+			viewports[2].TopLeftY = 460;
+			viewports[2].MinDepth = 0.0f;
+			viewports[2].MaxDepth = 1.0f;
+
+			viewports[3].Width = window_width / 2 - 200;
+			viewports[3].Height = window_height / 2 - 100;
+			viewports[3].TopLeftX = 840;
+			viewports[3].TopLeftY = 460;
+			viewports[3].MinDepth = 0.0f;
+			viewports[3].MaxDepth = 1.0f;
+		}
+
 		//シザー矩形の設定コマンド
 		D3D12_RECT scissorrect{};
 		scissorrect.left = 0;                                 //切り抜き座標左
@@ -420,21 +519,38 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		scissorrect.top = 0;                                  //切り抜き座標上
 		scissorrect.bottom = scissorrect.top + window_height; //切り抜き座標下
 		cmdList->RSSetScissorRects(1, &scissorrect);
+
 		//ルートシグネチャの設定コマンド
 		cmdList->SetGraphicsRootSignature(rootsignature);
+
 		//プリミティブ形状の設定コマンド(三角形リスト)
-		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 		//頂点バッファの設定コマンド
 		cmdList->IASetVertexBuffers(0, 1, &vbView);
-		//描画コマンド
-		cmdList->DrawInstanced(3, 1, 0, 0);
 
+		for (int i = 0; i < sizeof(viewports) / sizeof(viewports[0]); i++) {
+			//ビューポートを設定
+			cmdList->RSSetViewports(1, &viewports[i]);
+
+			//描画コマンド
+			cmdList->DrawInstanced(vertexNum, 1, 0, 0);
+		}
 		//３.描画コマンドここまで
 
 		//４.リソースバリアを戻す
 		barrierDesc.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;//描画 
 		barrierDesc.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;//表示から
 		cmdList->ResourceBarrier(1, &barrierDesc);
+
+		if (key[DIK_1]) {
+			wireframe = !wireframe;
+		}
+		if (wireframe) {
+			gpipeline.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+		}
+		else {
+			gpipeline.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+		}
 
 		//命令のクローズ
 		cmdList->Close();
