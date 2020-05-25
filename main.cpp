@@ -29,7 +29,7 @@ D3D12_VIEWPORT viewports[4];
 bool triangle = true;
 int vertexNum = 3;
 
-int keyCnt, keyCnt2,KeySpace;
+int keyCnt, keyCnt2, KeySpace;
 bool wireframe;
 
 float moveX = 0.0f, moveY = 0.0f;
@@ -322,17 +322,33 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	//レンダーターゲットのブレンド設定(8個あるが、今は一つしか使わない)
 	D3D12_RENDER_TARGET_BLEND_DESC blenddesc{};
-
-	//ブレンドステートの設定
-	//gpipeline.BlendState.RenderTarget[0] = blenddesc;
-	gpipeline.BlendState.RenderTarget[0].RenderTargetWriteMask =
-		D3D12_COLOR_WRITE_ENABLE_ALL;
-
+	blenddesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;//標準設定
 
 	blenddesc.BlendEnable = true;                   //ブレンドを有効にする
 	blenddesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;    //加算
 	blenddesc.SrcBlendAlpha = D3D12_BLEND_ONE;      //ソースの値を100％使う
 	blenddesc.DestBlendAlpha = D3D12_BLEND_ZERO;    //デストの値を  0％使う
+
+	//加算合成
+	//blenddesc.BlendOp = D3D12_BLEND_OP_ADD;
+	//減算合成
+	//blenddesc.BlendOp = D3D12_BLEND_OP_REV_SUBTRACT;
+	blenddesc.SrcBlend = D3D12_BLEND_ONE;
+	blenddesc.DestBlend = D3D12_BLEND_ONE;
+
+	//色反転
+	//blenddesc.BlendOp = D3D12_BLEND_OP_ADD;
+	//blenddesc.SrcBlend =D3D12_BLEND_INV_DEST_COLOR;
+	//blenddesc.DestBlend = D3D12_BLEND_ZERO;
+
+	//半透明合成
+	blenddesc.BlendOp = D3D12_BLEND_OP_ADD;
+	blenddesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	blenddesc.DestBlend = D3D12_BLEND_INV_SRC_COLOR;
+
+	//ブレンドステートの設定
+	gpipeline.BlendState.RenderTarget[0] = blenddesc;
+
 
 	//頂点レイアウトの設定
 	gpipeline.InputLayout.pInputElementDescs = inputLayout;
@@ -398,89 +414,90 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		rtvH.ptr += bbIndex * dev->GetDescriptorHandleIncrementSize(heapDesc.Type);
 		cmdList->OMSetRenderTargets(1, &rtvH, false, nullptr);
 		//全画面クリア          R    G     B    A
-		float clearColor[] = { 1.0f,0.2f,1.0f,0.0f };//青っぽい色
+		float clearColor[] = { 0.0f ,0.0f,1.0f,0.0f };
 
 		cmdList->ClearRenderTargetView(rtvH, clearColor, 0, nullptr);
 		//２.画面クリアコマンドここまで
 
 
-		//キー入力
+#pragma region 課題キー入力部分
+		//if (key[DIK_SPACE]) {
+		//	KeySpace++;
+		//}
+		//else {
+		//	KeySpace = 0;
+		//}
 
-		if (key[DIK_SPACE]) {
-			KeySpace++;
-		}
-		else {
-			KeySpace = 0;
-		}
+		//if (key[DIK_1]) {
+		//	keyCnt++;
+		//}
+		//else {
+		//	keyCnt = 0;
+		//}
+		//if (keyCnt == 1) {
+		//	switch (vertexNum)
+		//	{
+		//	case 3:
+		//		vertexNum = 4;
+		//		break;
+		//	case 4:
+		//		vertexNum = 3;
+		//		break;
+		//	default:
+		//		break;
+		//	}
+		//}
 
-		if (key[DIK_1]) {
-			keyCnt++;
-		}
-		else {
-			keyCnt = 0;
-		}
-		if (keyCnt == 1) {
-			switch (vertexNum)
-			{
-			case 3:
-				vertexNum = 4;
-				break;
-			case 4:
-				vertexNum = 3;
-				break;
-			default:
-				break;
-			}
-		}
+		//if (key[DIK_2]) {
+		//	keyCnt2++;
 
-		if (key[DIK_2]) {
-			keyCnt2++;
+		//}
+		//else {
+		//	keyCnt2 = 0;
+		//}
 
-		}
-		else {
-			keyCnt2 = 0;
-		}
+		//if (keyCnt2 == 1) {
+		//	pipelinestate->Release();
+		//	wireframe = !wireframe;
+		//	if (wireframe) {
+		//		gpipeline.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;//ワイヤーフレーム表示設定
+		//	}
+		//	else {
+		//		gpipeline.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;//ワイヤーフレーム表示設定
+		//	}
+		//	result = dev->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(&pipelinestate));
+		//}
 
-		if (keyCnt2 == 1) {
-			pipelinestate->Release();
-			wireframe = !wireframe;
-			if (wireframe) {
-				gpipeline.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;//ワイヤーフレーム表示設定
-			}
-			else {
-				gpipeline.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;//ワイヤーフレーム表示設定
-			}
-			result = dev->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(&pipelinestate));
-		}
+		//if (key[DIK_UP]) {
+		//	moveY += 0.01f;
+		//}
 
-		if (key[DIK_UP]) {
-			moveY += 0.01f;
-		}
+		//if (key[DIK_DOWN]) {
+		//	moveY -= 0.01f;
+		//}
 
-		if (key[DIK_DOWN]) {
-			moveY -= 0.01f;
-		}
+		//if (key[DIK_RIGHT]) {
+		//	moveX += 0.01f;
+		//}
 
-		if (key[DIK_RIGHT]) {
-			moveX += 0.01f;
-		}
+		//if (key[DIK_LEFT]) {
+		//	moveX -= 0.01f;
+		//}
 
-		if (key[DIK_LEFT]) {
-			moveX -= 0.01f;
-		}
 
-		//頂点
-		XMFLOAT3 vertices[] = {
-		{-0.5f + moveX,-0.5f + moveY,0.0f},   //左下
-		{-0.5f + moveX,+0.5f + moveY,0.0f},   //左上
-		{+0.5f + moveX,-0.5f + moveY,0.0f},   //右下
-		{+0.5f + moveX,+0.5f + moveY,0.0f},   //右上
-		};
-		//全頂点に対して
-		for (int i = 0; i < _countof(vertices); i++)
-		{
-			vertMap[i] = vertices[i];   //座標をコピー
-		}
+		////頂点
+		//XMFLOAT3 vertices[] = {
+		//{-0.5f + moveX,-0.5f + moveY,0.0f},   //左下
+		//{-0.5f + moveX,+0.5f + moveY,0.0f},   //左上
+		//{+0.5f + moveX,-0.5f + moveY,0.0f},   //右下
+		//{+0.5f + moveX,+0.5f + moveY,0.0f},   //右上
+		//};
+		////全頂点に対して
+		//for (int i = 0; i < _countof(vertices); i++)
+		//{
+		//	vertMap[i] = vertices[i];   //座標をコピー
+		//}
+#pragma endregion
 
 
 		//３.描画コマンドここから
@@ -490,14 +507,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		//ビューポート初期化
 		{
-			viewports[0].Width = window_width / 2 + 200;
-			viewports[0].Height = window_height / 2;
+			viewports[0].Width = window_width;
+			viewports[0].Height = window_height;
 			viewports[0].TopLeftX = 0;
 			viewports[0].TopLeftY = 0;
 			viewports[0].MinDepth = 0.0f;
 			viewports[0].MaxDepth = 1.0f;
-
-			viewports[1].Width = window_width / 2 - 200;
+#pragma region 画面分割用
+			/*viewports[1].Width = window_width / 2 - 200;
 			viewports[1].Height = window_height / 2 + 100;
 			viewports[1].TopLeftX = 840;
 			viewports[1].TopLeftY = 0;
@@ -516,7 +533,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			viewports[3].TopLeftX = 840;
 			viewports[3].TopLeftY = 460;
 			viewports[3].MinDepth = 0.0f;
-			viewports[3].MaxDepth = 1.0f;
+			viewports[3].MaxDepth = 1.0f;*/
+#pragma endregion
 		}
 
 		//シザー矩形の設定コマンド
@@ -548,16 +566,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		barrierDesc.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;//描画 
 		barrierDesc.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;//表示から
 		cmdList->ResourceBarrier(1, &barrierDesc);
-
-		if (key[DIK_1]) {
-			wireframe = !wireframe;
-		}
-		if (wireframe) {
-			gpipeline.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
-		}
-		else {
-			gpipeline.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-		}
 
 		//命令のクローズ
 		cmdList->Close();
