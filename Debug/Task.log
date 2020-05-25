@@ -1,4 +1,2 @@
-﻿FXC : warning X4717: Effects deprecated for D3DCompiler_47
-  
-  compilation object save succeeded; see D:\3年次\DirectX12Game\Debug\BasicPixelShader.cso
+﻿  main.cpp
   Task.vcxproj -> D:\3年次\DirectX12Game\Debug\Task.exe
