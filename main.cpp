@@ -29,7 +29,7 @@ D3D12_VIEWPORT viewports[4];
 bool triangle = true;
 int vertexNum = 3;
 
-int keyCnt, keyCnt2;
+int keyCnt, keyCnt2,KeySpace;
 bool wireframe;
 
 float moveX = 0.0f, moveY = 0.0f;
@@ -405,6 +405,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 
 		//キー入力
+
+		if (key[DIK_SPACE]) {
+			KeySpace++;
+		}
+		else {
+			KeySpace = 0;
+		}
+
 		if (key[DIK_1]) {
 			keyCnt++;
 		}
@@ -434,6 +442,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 
 		if (keyCnt2 == 1) {
+			pipelinestate->Release();
 			wireframe = !wireframe;
 			if (wireframe) {
 				gpipeline.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;//ワイヤーフレーム表示設定
@@ -472,8 +481,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		{
 			vertMap[i] = vertices[i];   //座標をコピー
 		}
-		//マップを解除
-		vertBuff->Unmap(0, nullptr);
 
 
 		//３.描画コマンドここから
