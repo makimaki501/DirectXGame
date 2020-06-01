@@ -277,14 +277,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma region •`‰æ‰Šú‰»ˆ—
 
-	const int polygon = 9;
+	const int polygon = 10;
 	XMFLOAT3 vertices[polygon + 1] = {};
-	float radius = 0.1f;
+	float radius = 0.5f;
+	bool half = false;
 
 	for (int i = 0; i < polygon; i++) {
-		vertices[i].x = (float)((radius*sin(XM_2PI / polygon * i) * 720 / 1280));
-		vertices[i].y = (float)((radius*cos(XM_2PI / polygon * i)));
-		vertices[i].z = 0;
+		if (!half) {
+			vertices[i].x = (float)((radius*sin(XM_2PI / polygon * i) * Window::WindowHeight / Window::WindowWidth));
+			vertices[i].y = (float)((radius*cos(XM_2PI / polygon * i)));
+			vertices[i].z = 0;
+		}
+		else {
+			vertices[i].x = (float)((radius*sin(XM_2PI / polygon * i) * Window::WindowHeight / Window::WindowWidth)*0.5f);
+			vertices[i].y = (float)((radius*cos(XM_2PI / polygon * i)*0.5f));
+			vertices[i].z = 0;
+		}
+		half = !half;
 	}
 	vertices[polygon] = { 0,0,0 };
 
