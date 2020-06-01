@@ -34,9 +34,6 @@ int vertexNum = 6;
 //bool wireframe;
 //float moveX = 0.0f, moveY = 0.0f;
 
-float radius = 0.1f;
-int PolygonNum = 3;
-
 LRESULT WindowsProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	//メッセージで分岐
 	switch (msg) {
@@ -280,44 +277,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma region 描画初期化処理
 
-	/*const int polygon = 20;
+	const int polygon = 9;
 	XMFLOAT3 vertices[polygon + 1] = {};
-	float radius = 0.5f;*/
+	float radius = 0.1f;
 
-	//for (int i = 0; i < polygon; i++) {
-	//	vertices[i].x = (float)((radius*sin(XM_2PI / polygon * i) * 720 / 1280));
-	//	vertices[i].x = (float)((radius*cos(XM_2PI / polygon * i)));
-	//	vertices[i].z = 0;
-	//}
-	//vertices[polygon] = { 0,0,0 };
-
-	XMFLOAT3 vertices[] = {
-	  { -0.5f, -0.5f, 0.0f }, // 左下 インデックス 0
-	  { -0.5f, +0.0f, 0.0f }, // 左中 インデックス 1
-	  { -0.5f, +0.5f, 0.0f }, // 左上 インデックス 2
-	  { +0.5f, -0.5f, 0.0f }, // 右下 インデックス 3
-	  { +0.5f, +0.0f, 0.0f }, // 右中 インデックス 4
-	  { +0.5f, +0.5f, 0.0f }, // 右上 インデックス 5
-	};
-
-	//const int line = polygon * 3;
+	for (int i = 0; i < polygon; i++) {
+		vertices[i].x = (float)((radius*sin(XM_2PI / polygon * i) * 720 / 1280));
+		vertices[i].y = (float)((radius*cos(XM_2PI / polygon * i)));
+		vertices[i].z = 0;
+	}
+	vertices[polygon] = { 0,0,0 };
 
 	//三角形のインデックスデータ
-	unsigned short indices[] =
-	{
-		0,3,1,4,
-		2,5,1,4
-		//1,3,4
-	};
+	unsigned short indices[polygon * 3];
 
 	//三角形(ライン)のプログラム
 	//頂点配列の宣言
-	/*for (int i = 0; i < polygon; i++) {
+	for (int i = 0; i < polygon; i++) {
 		indices[i * 3] = i;
 		indices[(i * 3) + 1] = i + 1;
 		indices[(i * 3) + 2] = polygon;
 	}
-	indices[line - 1] = 0;*/
+
+	indices[polygon * 3 - 1] = 0;
 
 	//頂点バッファの確保
 	D3D12_HEAP_PROPERTIES heapprop{};  //頂点ヒープ設定
@@ -679,7 +661,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		//インデックスバッファのセットコマンド
 		cmdList->IASetIndexBuffer(&ibView);
 		//プリミティブ形状の設定コマンド(三角形リスト)
-		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINESTRIP);
+		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 		//頂点バッファの設定コマンド
 		cmdList->IASetVertexBuffers(0, 1, &vbView);
 
@@ -694,7 +676,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			cmdList->RSSetViewports(1, &viewports[i]);
 
 			//描画コマンド
-			cmdList->DrawIndexedInstanced(15, 1, 0, 0, 0);
+			cmdList->DrawIndexedInstanced(sizeof(indices), 1, 0, 0, 0);
 		}
 		//３.描画コマンドここまでf
 
