@@ -4,7 +4,10 @@
 #include<vector>
 #include<DirectXMath.h>
 #include<d3dcompiler.h>
+#include<DirectXMath.h>
+
 #include"Input.h"
+#include"Window.h"
 
 using namespace DirectX;
 
@@ -31,7 +34,8 @@ int vertexNum = 6;
 //bool wireframe;
 //float moveX = 0.0f, moveY = 0.0f;
 
-
+float radius = 0.1f;
+int PolygonNum = 3;
 
 LRESULT WindowsProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	//メッセージで分岐
@@ -45,8 +49,6 @@ LRESULT WindowsProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
 //Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-	const int window_width = 1280;//横幅
-	const int window_height = 720;//縦幅
 
 	WNDCLASSEX w{};//ウィンドウクラスの設定
 	w.cbSize = sizeof(WNDCLASSEX);
@@ -58,7 +60,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//ウィンドウクラスをOSに登録
 	RegisterClassEx(&w);
 	//ウィンドウサイズ｛X座標　Y座標　横幅　縦幅｝
-	RECT wrc = { 0,0,window_width,window_height };
+	RECT wrc = { 0,0,Window::WindowWidth,Window::WindowHeight };
 	AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, false);//自動でサイズ補正
 
 	//ウィンドウオブジェクトの生成
@@ -275,20 +277,47 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	rootparam.DescriptorTable.NumDescriptorRanges = 1;                     //デスクリプレンジ数
 	rootparam.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;              //全てのシェーダから見える
 #pragma endregion
+
 #pragma region 描画初期化処理
-	//頂点データ(4頂点分の座標)
+
+	/*const int polygon = 20;
+	XMFLOAT3 vertices[polygon + 1] = {};
+	float radius = 0.5f;*/
+
+	//for (int i = 0; i < polygon; i++) {
+	//	vertices[i].x = (float)((radius*sin(XM_2PI / polygon * i) * 720 / 1280));
+	//	vertices[i].x = (float)((radius*cos(XM_2PI / polygon * i)));
+	//	vertices[i].z = 0;
+	//}
+	//vertices[polygon] = { 0,0,0 };
+
 	XMFLOAT3 vertices[] = {
-		//{-0.5f,-0.5f,0.0f},   //左下
-		//{-0.5f,+0.5f,0.0f},   //左上
-		//{+0.5f,-0.5f,0.0f},   //右下
-		//{+0.5f,+0.5f,0.0f},   //右上
-		{-0.5f,-0.0f,0.0f},   
-		{+0.0f,+0.75f,0.0f},   
-		{+0.0f,-0.75f,0.0f},  
-		{+0.5f,+0.0f,0.0f},
-		{+0.0f,+0.75f,0.0f},
-		{+0.0f,-0.75f,0.0f},
+	  { -0.5f, -0.5f, 0.0f }, // 左下 インデックス 0
+	  { -0.5f, +0.0f, 0.0f }, // 左中 インデックス 1
+	  { -0.5f, +0.5f, 0.0f }, // 左上 インデックス 2
+	  { +0.5f, -0.5f, 0.0f }, // 右下 インデックス 3
+	  { +0.5f, +0.0f, 0.0f }, // 右中 インデックス 4
+	  { +0.5f, +0.5f, 0.0f }, // 右上 インデックス 5
 	};
+
+	//const int line = polygon * 3;
+
+	//三角形のインデックスデータ
+	unsigned short indices[] =
+	{
+		0,3,1,4,
+		2,5,1,4
+		//1,3,4
+	};
+
+	//三角形(ライン)のプログラム
+	//頂点配列の宣言
+	/*for (int i = 0; i < polygon; i++) {
+		indices[i * 3] = i;
+		indices[(i * 3) + 1] = i + 1;
+		indices[(i * 3) + 2] = polygon;
+	}
+	indices[line - 1] = 0;*/
 
 	//頂点バッファの確保
 	D3D12_HEAP_PROPERTIES heapprop{};  //頂点ヒープ設定
@@ -391,7 +420,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//サンプルマスクとラスタライザステートの設定
 	gpipeline.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;//標準設定
 	gpipeline.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;  //カリングしない
-	gpipeline.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;//ワイヤーフレーム表示設定
+	gpipeline.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;//ワイヤーフレーム表示設定
 	gpipeline.RasterizerState.DepthClipEnable = true;  //深度クリッピングを有効に
 
 	//レンダーターゲットのブレンド設定(8個あるが、今は一つしか使わない)
@@ -446,6 +475,38 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	result = dev->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(&pipelinestate));
 #pragma endregion
 
+#pragma region 頂点インデックス
+
+	//インデックスバッファの確保
+	ID3D12Resource*indexBuff = nullptr;
+	resdesc.Width = sizeof(indices); //インデックス情報が入る分のサイズ
+	//GPUリソースの生成
+	result = dev->CreateCommittedResource(
+		&heapprop,            //ヒープの設定
+		D3D12_HEAP_FLAG_NONE,
+		&resdesc,             //リソースの設定
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&indexBuff));
+
+	//GPU上のバッファに対応した仮想メモリの取得
+	unsigned short*indexMap = nullptr;
+	result = indexBuff->Map(0, nullptr, (void**)&indexMap);
+	//全インデックスに対して
+	for (int i = 0; i < _countof(indices); i++)
+	{
+		indexMap[i] = indices[i];   //インデックスのコピー
+	}
+	indexBuff->Unmap(0, nullptr);
+
+	//インデックスバッファビューの作成とセット
+	D3D12_INDEX_BUFFER_VIEW ibView{};
+	ibView.BufferLocation = indexBuff->GetGPUVirtualAddress();
+	ibView.Format = DXGI_FORMAT_R16_UINT;
+	ibView.SizeInBytes = sizeof(indices);
+#pragma endregion
+
+
 	while (true)
 	{
 		//キーボード情報の取得開始
@@ -469,6 +530,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		barrierDesc.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;//表示から
 		barrierDesc.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;//描画
 		cmdList->ResourceBarrier(1, &barrierDesc);
+
 
 		//２.画面クリアコマンドここから
 
@@ -561,6 +623,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		//{
 		//	vertMap[i] = vertices[i];   //座標をコピー
 		//}
+		//マップを解除
+		//vertBuff->Unmap(0, nullptr);
 #pragma endregion
 
 
@@ -571,29 +635,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		//ビューポート初期化
 		{
-			viewports[0].Width = window_width;
-			viewports[0].Height = window_height;
+			viewports[0].Width = Window::WindowWidth;
+			viewports[0].Height = Window::WindowHeight;
 			viewports[0].TopLeftX = 0;
 			viewports[0].TopLeftY = 0;
 			viewports[0].MinDepth = 0.0f;
 			viewports[0].MaxDepth = 1.0f;
 #pragma region 画面分割用
-			/*viewports[1].Width = window_width / 2 - 200;
-			viewports[1].Height = window_height / 2 + 100;
+			/*viewports[1].Width = Window::WindowWidth / 2 - 200;
+			viewports[1].Height = Window::WindowHeight / 2 + 100;
 			viewports[1].TopLeftX = 840;
 			viewports[1].TopLeftY = 0;
 			viewports[1].MinDepth = 0.0f;
 			viewports[1].MaxDepth = 1.0f;
 
-			viewports[2].Width = window_width / 2 + 200;
-			viewports[2].Height = window_height / 2 - 100;
+			viewports[2].Width = Window::WindowWidth / 2 + 200;
+			viewports[2].Height =Window::WindowHeight / 2 - 100;
 			viewports[2].TopLeftX = 0;
 			viewports[2].TopLeftY = 460;
 			viewports[2].MinDepth = 0.0f;
 			viewports[2].MaxDepth = 1.0f;
 
-			viewports[3].Width = window_width / 2 - 200;
-			viewports[3].Height = window_height / 2 - 100;
+			viewports[3].Width = Window::WindowWidth / 2 - 200;
+			viewports[3].Height = Window::WindowHeight / 2 - 100;
 			viewports[3].TopLeftX = 840;
 			viewports[3].TopLeftY = 460;
 			viewports[3].MinDepth = 0.0f;
@@ -604,16 +668,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		//シザー矩形の設定コマンド
 		D3D12_RECT scissorrect{};
 		scissorrect.left = 0;                                 //切り抜き座標左
-		scissorrect.right = scissorrect.left + window_width;  //切り抜き座標右
+		scissorrect.right = scissorrect.left + Window::WindowWidth;  //切り抜き座標右
 		scissorrect.top = 0;                                  //切り抜き座標上
-		scissorrect.bottom = scissorrect.top + window_height; //切り抜き座標下
+		scissorrect.bottom = scissorrect.top + Window::WindowHeight; //切り抜き座標下
 		cmdList->RSSetScissorRects(1, &scissorrect);
 
 		//ルートシグネチャの設定コマンド
 		cmdList->SetGraphicsRootSignature(rootsignature);
 
+		//インデックスバッファのセットコマンド
+		cmdList->IASetIndexBuffer(&ibView);
 		//プリミティブ形状の設定コマンド(三角形リスト)
-		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINESTRIP);
 		//頂点バッファの設定コマンド
 		cmdList->IASetVertexBuffers(0, 1, &vbView);
 
@@ -628,9 +694,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			cmdList->RSSetViewports(1, &viewports[i]);
 
 			//描画コマンド
-			cmdList->DrawInstanced(vertexNum, 1, 0, 0);
+			cmdList->DrawIndexedInstanced(15, 1, 0, 0, 0);
 		}
-		//３.描画コマンドここまで
+		//３.描画コマンドここまでf
 
 		//４.リソースバリアを戻す
 		barrierDesc.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;//描画 

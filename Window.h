@@ -5,6 +5,6 @@
 class Window
 {
 public:
-	static const int WindowWidth = 800;		//	‰æ–Ê‰¡•
-	static const int WindowHeight = 600;	//	‰æ–Êc•
+	static const int WindowWidth = 1280;		//	‰æ–Ê‰¡•
+	static const int WindowHeight = 720;	//	‰æ–Êc•
 };
